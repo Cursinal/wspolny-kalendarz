@@ -226,28 +226,6 @@ export function formatPlan(plan, mode = CALENDAR_MODES.AVAILABILITY) {
   return `${prefix} ${intervals.map((interval) => `${interval.from}–${interval.to}`).join(', ')}`;
 }
 
-function compactClock(value) {
-  return String(value || '')
-    .replace(/^0(?=\d:)/, '')
-    .replace(/:00$/, '');
-}
-
-export function formatPlanCompact(plan, mode = CALENDAR_MODES.AVAILABILITY) {
-  const normalizedMode = normalizeCalendarMode(mode);
-  if (!isPlanMarked(plan)) {
-    return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'cały dzień' : '';
-  }
-  if (plan.allDay) {
-    return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'brak' : 'cały dzień';
-  }
-  const intervals = normalizePlan(plan).intervals;
-  if (!intervals.length) return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'cały dzień' : '';
-  const label = intervals
-    .map((interval) => `${compactClock(interval.from)}–${compactClock(interval.to)}`)
-    .join(', ');
-  return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? `poza ${label}` : label;
-}
-
 export function sortDateKeys(values) {
   return [...values].sort((a, b) => a.localeCompare(b));
 }

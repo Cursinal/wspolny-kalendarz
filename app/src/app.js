@@ -7,7 +7,6 @@ import {
   formatMinuteInterval,
   formatMonthTitle,
   formatPlan,
-  formatPlanCompact,
   getDateRange,
   getMonthGrid,
   isProfileAvailable,
@@ -157,6 +156,7 @@ export class FriendsCalendarApp {
     this.currentMonth = todayMonth();
     this.monthData = null;
     this.selectedDates = new Set();
+    this.calendarInteractionMode = 'browse';
     this.avatarUrls = new Map();
     this.avatarUrlPromises = new Map();
     this.avatarCacheVersion = 0;
@@ -567,6 +567,8 @@ export class FriendsCalendarApp {
     if (!profile) return;
     this.currentProfileId = profileId;
     this.currentMonth = todayMonth(this.vault.index.group.timeZone);
+    this.calendarInteractionMode = 'browse';
+    this.selectedDates.clear();
     this.applyTheme(profile.theme || 'black');
     this.applyProfileAccent(profile);
     diagnosticLog('profile_selected', { profileId: profile.id, avatarKind: profile.avatar?.kind || 'none' });
@@ -590,7 +592,29 @@ export class FriendsCalendarApp {
       this.monthData = { month, entries: {} };
     }
 
-    const shell = element('main', { className: 'calendar-screen' });
+    const shell = element('main', {
+      className: `calendar-screen ${this.calendarInteractionMode === 'edit' ? 'is-edit-mode' : 'is-browse-mode'}`,
+    });
+    const editModeButton = element('button', {
+      type: 'button',
+      className: `button button--secondary button--small edit-mode-button ${this.calendarInteractionMode === 'edit' ? 'is-active' : ''}`,
+      attrs: {
+        'aria-pressed': String(this.calendarInteractionMode === 'edit'),
+        'aria-label': this.calendarInteractionMode === 'edit' ? 'Zakończ edycję kalendarza' : 'Włącz edycję kalendarza',
+      },
+      on: {
+        click: () => this.setCalendarInteractionMode(
+          this.calendarInteractionMode === 'edit' ? 'browse' : 'edit',
+        ),
+      },
+    }, [
+      element('span', { className: 'edit-mode-button__icon', text: '✎', attrs: { 'aria-hidden': 'true' } }),
+      element('span', {
+        className: 'edit-mode-button__label',
+        text: this.calendarInteractionMode === 'edit' ? 'Zakończ edycję' : 'Edytuj kalendarz',
+      }),
+    ]);
+    this.editModeButton = editModeButton;
     const topbar = element('header', { className: 'calendar-topbar' }, [
       element('button', {
         type: 'button',
@@ -604,6 +628,7 @@ export class FriendsCalendarApp {
         ]),
       ]),
       element('div', { className: 'topbar-actions' }, [
+        editModeButton,
         iconButton('↻', 'Synchronizuj', () => this.syncCurrentMonth()),
         iconButton('⚙', 'Ustawienia profilu', () => this.openProfileSettings(profile.id)),
       ]),
@@ -632,10 +657,29 @@ export class FriendsCalendarApp {
 
     const selectionHint = element('p', {
       className: 'selection-hint',
-      text: 'Przeciągnij po dniach albo wybieraj je pojedynczo. Potem kliknij „Dalej”.',
+      text: this.calendarInteractionMode === 'edit'
+        ? 'Tryb edycji: przeciągnij po dniach albo wybieraj je pojedynczo.'
+        : 'Kliknij dzień, aby zobaczyć szczegóły. Przytrzymaj palcem lub kliknij prawym, aby edytować.',
     });
+    this.selectionHint = selectionHint;
 
     const legend = this.buildProfileLegend();
+    const removeSelectionButton = button('Usuń wpisy', {
+      className: 'button button--danger button--small selection-remove-button',
+      on: {
+        click: async () => {
+          setBusy(removeSelectionButton, true, 'Usuwam…');
+          try {
+            await this.removeAvailability(sortDateKeys(this.selectedDates));
+          } catch (error) {
+            showToast(error.message || 'Nie udało się usunąć dyspozycji.', 'error');
+          } finally {
+            setBusy(removeSelectionButton, false);
+          }
+        },
+      },
+    });
+    this.selectionRemoveButton = removeSelectionButton;
     const selectionToolbar = element('div', { className: 'selection-toolbar', attrs: { 'aria-live': 'polite' } }, [
       element('div', { className: 'selection-toolbar__copy' }, [
         element('strong', { className: 'selection-count', text: '0 dni' }),
@@ -643,6 +687,7 @@ export class FriendsCalendarApp {
       ]),
       element('div', { className: 'selection-toolbar__actions' }, [
         button('Wyczyść', { className: 'button button--ghost button--small', on: { click: () => this.clearSelection() } }),
+        removeSelectionButton,
         button('Dalej', {
           className: 'button button--primary button--small',
           attrs: { title: modeCopy.selectionAction, 'aria-label': `${modeCopy.selectionAction} — przejdź dalej` },
@@ -662,6 +707,7 @@ export class FriendsCalendarApp {
     shell.append(topbar, monthToolbar, calendarPanel, selectionHint, legend, selectionToolbar, bottomNav);
     this.root.replaceChildren(shell);
     this.attachCalendarSelection(grid);
+    this.updateInteractionModeUi();
     this.updateSelectionUi();
   }
 
@@ -731,23 +777,7 @@ export class FriendsCalendarApp {
       cell.append(element('span', { className: 'day-cell__number', text: item.day }));
       const profileAvatars = element('span', { className: 'day-cell__profiles', attrs: { 'aria-hidden': 'true' } });
       for (const availableProfile of availableProfiles.slice(0, 4)) {
-        const plan = entries[availableProfile.id];
-        const timeLabel = formatPlanCompact(plan, mode);
-        const note = String(plan?.note || '').trim();
-        const person = element('span', {
-          className: `day-cell__person ${note ? 'has-note' : ''}`,
-          attrs: {
-            title: `${availableProfile.name}: ${timeLabel}${note ? ` — ${note}` : ''}`,
-          },
-        }, [
-          this.createAvatarNode(availableProfile, 'day-cell__avatar'),
-          element('span', { className: 'day-cell__person-copy' }, [
-            element('span', { className: 'day-cell__time', text: timeLabel }),
-            note ? element('span', { className: 'day-cell__note', text: note }) : null,
-          ]),
-        ]);
-        person.style.setProperty('--profile-color', availableProfile.color);
-        profileAvatars.append(person);
+        profileAvatars.append(this.createAvatarNode(availableProfile, 'day-cell__avatar'));
       }
       if (availableProfiles.length > 4) {
         profileAvatars.append(element('span', { className: 'day-cell__more', text: `+${availableProfiles.length - 4}` }));
@@ -798,18 +828,92 @@ export class FriendsCalendarApp {
     ]);
   }
 
+  setCalendarInteractionMode(mode, notify = true) {
+    const nextMode = mode === 'edit' ? 'edit' : 'browse';
+    const changed = nextMode !== this.calendarInteractionMode;
+    this.calendarInteractionMode = nextMode;
+    if (nextMode === 'browse') this.selectedDates.clear();
+    this.updateInteractionModeUi();
+    this.updateSelectionUi();
+    if (notify && changed) {
+      diagnosticLog('calendar_interaction_mode_changed', { mode: nextMode });
+      showToast(
+        nextMode === 'edit' ? 'Włączono tryb edycji.' : 'Włączono tryb przeglądania.',
+        'info',
+      );
+    }
+  }
+
+  updateInteractionModeUi() {
+    const editing = this.calendarInteractionMode === 'edit';
+    const shell = this.root.querySelector('.calendar-screen');
+    shell?.classList.toggle('is-edit-mode', editing);
+    shell?.classList.toggle('is-browse-mode', !editing);
+    if (this.editModeButton) {
+      this.editModeButton.classList.toggle('is-active', editing);
+      this.editModeButton.setAttribute('aria-pressed', String(editing));
+      this.editModeButton.setAttribute(
+        'aria-label',
+        editing ? 'Zakończ edycję kalendarza' : 'Włącz edycję kalendarza',
+      );
+      const label = this.editModeButton.querySelector('.edit-mode-button__label');
+      if (label) label.textContent = editing ? 'Zakończ edycję' : 'Edytuj kalendarz';
+    }
+    if (this.selectionHint) {
+      this.selectionHint.textContent = editing
+        ? 'Tryb edycji: przeciągnij po dniach albo wybieraj je pojedynczo.'
+        : 'Kliknij dzień, aby zobaczyć szczegóły. Przytrzymaj palcem lub kliknij prawym, aby edytować.';
+    }
+  }
+
   attachCalendarSelection(grid) {
     let pointerState = null;
     let lastPointerCompletion = 0;
+    let suppressClickUntil = 0;
+    let longPressTimer = null;
 
     const dayFromEvent = (event) => {
       const target = event.target.closest?.('.day-cell:not(:disabled)');
       return target?.dataset.date ? target : null;
     };
 
+    const cancelLongPress = () => {
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+    };
+
+    const selectDateForEditing = (date, replace = false) => {
+      if (replace) this.selectedDates = new Set([date]);
+      else this.selectedDates.add(date);
+      this.updateSelectionUi();
+    };
+
     const beginDrag = (event) => {
       const target = dayFromEvent(event);
-      if (!target || event.button > 0) return;
+      if (!target || event.button > 0 || event.isPrimary === false) return;
+
+      if (this.calendarInteractionMode === 'browse') {
+        if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+        pointerState = {
+          id: event.pointerId,
+          start: target.dataset.date,
+          startX: event.clientX,
+          startY: event.clientY,
+        };
+        cancelLongPress();
+        longPressTimer = setTimeout(() => {
+          if (!pointerState || pointerState.id !== event.pointerId) return;
+          const date = pointerState.start;
+          pointerState = null;
+          longPressTimer = null;
+          suppressClickUntil = performance.now() + 900;
+          this.setCalendarInteractionMode('edit');
+          selectDateForEditing(date, true);
+          navigator.vibrate?.(18);
+        }, 520);
+        return;
+      }
+
       grid.setPointerCapture?.(event.pointerId);
       pointerState = {
         id: event.pointerId,
@@ -826,6 +930,14 @@ export class FriendsCalendarApp {
     const moveDrag = (event) => {
       if (!pointerState || pointerState.id !== event.pointerId) return;
       const distance = Math.hypot(event.clientX - pointerState.startX, event.clientY - pointerState.startY);
+      if (this.calendarInteractionMode === 'browse') {
+        if (distance > 10) {
+          cancelLongPress();
+          pointerState = null;
+          suppressClickUntil = performance.now() + 350;
+        }
+        return;
+      }
       if (!pointerState.dragging) {
         const threshold = event.pointerType === 'touch' ? 7 : 4;
         if (distance > threshold) {
@@ -845,6 +957,11 @@ export class FriendsCalendarApp {
 
     const finishDrag = (event) => {
       if (!pointerState || pointerState.id !== event.pointerId) return;
+      cancelLongPress();
+      if (this.calendarInteractionMode === 'browse') {
+        pointerState = null;
+        return;
+      }
       const completed = pointerState;
       if (grid.hasPointerCapture?.(event.pointerId)) grid.releasePointerCapture(event.pointerId);
       pointerState = null;
@@ -861,13 +978,27 @@ export class FriendsCalendarApp {
     grid.addEventListener('pointermove', moveDrag);
     grid.addEventListener('pointerup', finishDrag);
     grid.addEventListener('pointercancel', (event) => {
+      cancelLongPress();
       if (grid.hasPointerCapture?.(event.pointerId)) grid.releasePointerCapture(event.pointerId);
       pointerState = null;
     });
-    grid.addEventListener('click', (event) => {
-      if (performance.now() - lastPointerCompletion < 500) return;
+    grid.addEventListener('contextmenu', (event) => {
       const target = dayFromEvent(event);
       if (!target) return;
+      event.preventDefault();
+      const wasBrowsing = this.calendarInteractionMode === 'browse';
+      this.setCalendarInteractionMode('edit');
+      selectDateForEditing(target.dataset.date, wasBrowsing);
+      suppressClickUntil = performance.now() + 500;
+    });
+    grid.addEventListener('click', (event) => {
+      if (performance.now() < suppressClickUntil || performance.now() - lastPointerCompletion < 500) return;
+      const target = dayFromEvent(event);
+      if (!target) return;
+      if (this.calendarInteractionMode === 'browse') {
+        this.openDayDetails(target.dataset.date);
+        return;
+      }
       if (this.selectedDates.has(target.dataset.date)) this.selectedDates.delete(target.dataset.date);
       else this.selectedDates.add(target.dataset.date);
       this.updateSelectionUi();
@@ -877,6 +1008,10 @@ export class FriendsCalendarApp {
       const target = dayFromEvent(event);
       if (!target) return;
       event.preventDefault();
+      if (this.calendarInteractionMode === 'browse') {
+        this.openDayDetails(target.dataset.date);
+        return;
+      }
       if (this.selectedDates.has(target.dataset.date)) this.selectedDates.delete(target.dataset.date);
       else this.selectedDates.add(target.dataset.date);
       this.updateSelectionUi();
@@ -901,9 +1036,17 @@ export class FriendsCalendarApp {
     });
     if (!this.selectionToolbar) return;
     const count = this.selectedDates.size;
-    this.selectionToolbar.classList.toggle('is-visible', count > 0);
+    const editing = this.calendarInteractionMode === 'edit';
+    this.selectionToolbar.classList.toggle('is-visible', editing && count > 0);
     const label = count === 1 ? '1 dzień' : count < 5 ? `${count} dni` : `${count} dni`;
     this.selectionToolbar.querySelector('.selection-count').textContent = label;
+    if (this.selectionRemoveButton) {
+      const existingEntryCount = [...this.selectedDates].filter((date) => (
+        isPlanMarked(this.monthData?.entries?.[date]?.[this.currentProfileId])
+      )).length;
+      this.selectionRemoveButton.hidden = existingEntryCount === 0;
+      this.selectionRemoveButton.textContent = existingEntryCount === 1 ? 'Usuń wpis' : 'Usuń wpisy';
+    }
   }
 
   clearSelection() {
@@ -931,6 +1074,146 @@ export class FriendsCalendarApp {
     } catch (error) {
       showToast(error.message || 'Synchronizacja nie powiodła się.', 'error');
     }
+  }
+
+  openDayDetails(date) {
+    const dialog = $('#availability-dialog');
+    if (dialog.open) dialog.close();
+    dialog.replaceChildren();
+    const mode = this.calendarMode();
+    const profiles = this.vault.index.profiles;
+    const entries = this.monthData.entries?.[date] || {};
+    const currentPlan = entries[this.currentProfileId];
+    const hasCurrentEntry = isPlanMarked(currentPlan);
+    const common = commonAvailability(entries, profiles.map((profile) => profile.id), mode);
+    const availableCount = profiles.filter((profile) => isProfileAvailable(entries[profile.id], mode)).length;
+    const availableLabel = availableCount === 1
+      ? '1 osoba dostępna'
+      : availableCount >= 2 && availableCount <= 4
+        ? `${availableCount} osoby dostępne`
+        : `${availableCount} osób dostępnych`;
+    diagnosticLog('day_details_opened', { date, availableCount, profileCount: profiles.length });
+
+    const overview = element('section', { className: 'day-details-overview' }, [
+      element('strong', {
+        text: availableCount ? availableLabel : 'Nikt nie jest dostępny',
+      }),
+      element('span', {
+        text: common.length
+          ? `Wspólny czas: ${common.map(formatMinuteInterval).join(', ')}`
+          : 'Brak wspólnego wolnego czasu',
+      }),
+    ]);
+
+    const conversation = element('div', {
+      className: 'day-conversation',
+      attrs: { 'aria-label': `Dyspozycyjność: ${formatDateLong(date)}` },
+    });
+    for (const person of profiles) {
+      const plan = entries[person.id];
+      const marked = isPlanMarked(plan);
+      const row = element('section', {
+        className: [
+          'day-message',
+          person.id === this.currentProfileId ? 'is-current-profile' : '',
+          !marked && mode === CALENDAR_MODES.AVAILABILITY ? 'is-empty' : '',
+        ].filter(Boolean).join(' '),
+      });
+      row.style.setProperty('--profile-color', person.color);
+      const name = element('div', { className: 'day-message__name' }, [
+        element('strong', { text: person.name }),
+        person.id === this.currentProfileId
+          ? element('span', { className: 'day-message__you', text: 'Ty' })
+          : null,
+      ]);
+      const messageContent = element('div', { className: 'day-message__content' }, [
+        name,
+        element('div', {
+          className: `day-message__bubble day-message__bubble--time ${mode === CALENDAR_MODES.UNAVAILABILITY && marked ? 'is-blocked' : ''}`,
+          text: formatPlan(plan, mode),
+        }),
+      ]);
+      const note = String(plan?.note || '').trim();
+      if (note) {
+        messageContent.append(element('p', {
+          className: 'day-message__bubble day-message__bubble--note',
+          text: note,
+        }));
+      }
+      row.append(this.createAvatarNode(person, 'day-message__avatar'), messageContent);
+      conversation.append(row);
+    }
+
+    const editButton = button(hasCurrentEntry ? 'Edytuj mój wpis' : 'Dodaj mój wpis', {
+      className: 'button button--primary',
+      on: {
+        click: () => {
+          dialog.close();
+          this.setCalendarInteractionMode('edit');
+          this.selectedDates = new Set([date]);
+          this.updateSelectionUi();
+          this.openAvailabilityEditor();
+        },
+      },
+    });
+    const footerActions = [];
+    if (hasCurrentEntry) {
+      const removeButton = button('Usuń mój wpis', {
+        className: 'button button--danger',
+        on: {
+          click: async () => {
+            setBusy(removeButton, true, 'Usuwam…');
+            try {
+              await this.removeAvailability([date], dialog);
+            } catch (error) {
+              showToast(error.message || 'Nie udało się usunąć dyspozycji.', 'error');
+              setBusy(removeButton, false);
+            }
+          },
+        },
+      });
+      footerActions.push(removeButton);
+    }
+    footerActions.push(editButton);
+
+    dialog.append(element('section', { className: 'sheet-card day-details-card' }, [
+      element('div', { className: 'sheet-handle', attrs: { 'aria-hidden': 'true' } }),
+      element('header', { className: 'sheet-header' }, [
+        element('div', {}, [
+          element('p', { className: 'eyebrow', text: 'SZCZEGÓŁY DNIA' }),
+          element('h2', { text: formatDateLong(date) }),
+        ]),
+        iconButton('×', 'Zamknij', () => dialog.close()),
+      ]),
+      overview,
+      conversation,
+      element('footer', { className: 'sheet-footer day-details-footer' }, footerActions),
+    ]));
+    dialog.showModal();
+  }
+
+  async removeAvailability(dates, dialog = null) {
+    const profile = this.vault.profile(this.currentProfileId);
+    if (!profile) return;
+    const datesWithEntries = sortDateKeys(dates).filter((date) => (
+      isPlanMarked(this.monthData?.entries?.[date]?.[profile.id])
+    ));
+    if (!datesWithEntries.length) return;
+    const changes = Object.fromEntries(datesWithEntries.map((date) => [date, {
+      available: false,
+      allDay: false,
+      intervals: [],
+      note: '',
+    }]));
+    await this.vault.setAvailability(profile.id, changes);
+    diagnosticLog('availability_removed', { profileId: profile.id, dates: datesWithEntries });
+    if (dialog?.open) dialog.close();
+    this.selectedDates.clear();
+    await this.renderCalendar(true);
+    showToast(
+      datesWithEntries.length === 1 ? 'Wpis został usunięty.' : `Usunięto wpisy z ${datesWithEntries.length} dni.`,
+      'success',
+    );
   }
 
   openAvailabilityEditor() {

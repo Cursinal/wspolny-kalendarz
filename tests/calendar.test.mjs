@@ -5,7 +5,6 @@ import {
   commonAvailability,
   getDateRange,
   getMonthGrid,
-  formatPlanCompact,
   isProfileAvailable,
   normalizePlan,
   parseMonthKey,
@@ -85,17 +84,4 @@ test('licznik osób dostępnych uwzględnia tryb kalendarza', () => {
     available: true,
     intervals: [{ from: '10:00', to: '12:00' }],
   }, CALENDAR_MODES.UNAVAILABILITY), true);
-});
-
-test('zwarty opis planu mieści godziny i tryb całodniowy na kafelku', () => {
-  assert.equal(formatPlanCompact({ available: true, allDay: true }), 'cały dzień');
-  assert.equal(formatPlanCompact({
-    available: true,
-    intervals: [{ from: '09:00', to: '12:00' }, { from: '18:30', to: '22:00' }],
-  }), '9–12, 18:30–22');
-  assert.equal(formatPlanCompact(undefined, CALENDAR_MODES.UNAVAILABILITY), 'cały dzień');
-  assert.equal(formatPlanCompact({
-    available: true,
-    intervals: [{ from: '10:00', to: '12:00' }],
-  }, CALENDAR_MODES.UNAVAILABILITY), 'poza 10–12');
 });
