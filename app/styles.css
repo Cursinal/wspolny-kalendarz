@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Material Icons";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./MaterialIcons-Regular.woff2") format("woff2");
+}
+
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif;
@@ -172,6 +180,35 @@ h3 {
   color: var(--text-faint);
 }
 
+.material-icons {
+  display: inline-block;
+  direction: ltr;
+  font-family: "Material Icons";
+  font-size: 24px;
+  font-style: normal;
+  font-weight: normal;
+  font-feature-settings: "liga";
+  letter-spacing: normal;
+  line-height: 1;
+  text-rendering: optimizeLegibility;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+.button-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.button__icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+
 .button {
   min-height: 44px;
   border: 1px solid transparent;
@@ -293,6 +330,19 @@ h3 {
 .interval-remove:disabled {
   cursor: not-allowed;
   opacity: 0.34;
+}
+
+.icon-button .material-icons,
+.password-toggle .material-icons {
+  font-size: 22px;
+}
+
+.month-nav-button .material-icons {
+  font-size: 32px;
+}
+
+.interval-remove .material-icons {
+  font-size: 20px;
 }
 
 .text-button {
@@ -464,6 +514,10 @@ input[type="file"]::file-selector-button {
   font-weight: 900;
 }
 
+.brand-mark .material-icons {
+  font-size: 31px;
+}
+
 .unlock-form,
 .setup-form,
 .settings-form,
@@ -576,6 +630,10 @@ input[type="file"]::file-selector-button {
   font-weight: 900;
 }
 
+.brand-inline__mark .material-icons {
+  font-size: 22px;
+}
+
 .profiles-content {
   width: min(100%, 920px);
   margin: clamp(60px, 12vh, 130px) auto 0;
@@ -649,8 +707,10 @@ input[type="file"]::file-selector-button {
   border-color: var(--border-strong);
   background: var(--surface);
   color: var(--text-faint);
-  font-size: 2.4rem;
-  font-weight: 350;
+}
+
+.profile-card__avatar--add .material-icons {
+  font-size: clamp(2rem, 9vw, 3rem);
 }
 
 /* Avatar */
@@ -791,7 +851,7 @@ input[type="file"]::file-selector-button {
 }
 
 .edit-mode-button__icon {
-  font-size: 1.05rem;
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -911,6 +971,12 @@ input[type="file"]::file-selector-button {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+.day-cell.is-group-match:not(.is-selected) {
+  z-index: 1;
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--success) 78%, var(--border));
+}
+
 .day-cell.is-today .day-cell__number {
   display: grid;
   place-items: center;
@@ -923,9 +989,15 @@ input[type="file"]::file-selector-button {
 }
 
 .day-cell__number {
+  color: var(--text-faint);
   font-size: clamp(0.78rem, 3vw, 0.98rem);
   font-weight: 720;
   line-height: 1;
+}
+
+.day-cell.is-group-match:not(.is-today):not(.is-selected) .day-cell__number,
+.day-cell.is-group-match:not(.is-selected) .available-count {
+  color: var(--success);
 }
 
 .day-cell__profiles {
@@ -983,7 +1055,6 @@ input[type="file"]::file-selector-button {
   gap: 2px;
 }
 
-.common-time,
 .available-count {
   display: block;
   max-width: 100%;
@@ -994,12 +1065,6 @@ input[type="file"]::file-selector-button {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.common-time {
-  min-width: 0;
-  color: var(--success);
-  text-align: right;
 }
 
 .available-count {
@@ -2023,10 +2088,6 @@ dialog::backdrop {
     height: 16px;
     margin-left: -7px;
     font-size: 0.46rem;
-  }
-
-  .common-time {
-    font-size: 0.48rem;
   }
 
   .legend-section {

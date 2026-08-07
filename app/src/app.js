@@ -80,8 +80,16 @@ function clone(value) {
     : JSON.parse(JSON.stringify(value));
 }
 
-function iconButton(symbol, label, onClick, className = 'icon-button') {
-  return button(symbol, {
+function materialIcon(name, className = '') {
+  return element('span', {
+    className: `material-icons ${className}`.trim(),
+    text: name,
+    attrs: { 'aria-hidden': 'true' },
+  });
+}
+
+function iconButton(iconName, label, onClick, className = 'icon-button') {
+  return button(materialIcon(iconName), {
     className,
     attrs: { 'aria-label': label, title: label },
     on: { click: onClick },
@@ -300,8 +308,11 @@ export class FriendsCalendarApp {
       required: true,
       attrs: { placeholder: 'Hasło do kalendarza', 'aria-label': 'Hasło do kalendarza' },
     });
-    const revealButton = iconButton('◉', 'Pokaż lub ukryj hasło', () => {
+    const revealButton = iconButton('visibility', 'Pokaż lub ukryj hasło', () => {
       passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+      revealButton.querySelector('.material-icons').textContent = passwordInput.type === 'password'
+        ? 'visibility'
+        : 'visibility_off';
       passwordInput.focus();
     }, 'password-toggle');
     const submit = button('Otwórz kalendarz', { className: 'button button--primary button--large' });
@@ -374,7 +385,7 @@ export class FriendsCalendarApp {
     this.root.replaceChildren(element('main', { className: 'lock-screen' }, [
       element('div', { className: 'lock-backdrop-mark', text: '31' }),
       element('section', { className: 'unlock-card' }, [
-        element('div', { className: 'brand-mark', text: '✓' }),
+        element('div', { className: 'brand-mark' }, materialIcon('event_available')),
         element('p', { className: 'eyebrow', text: 'PRYWATNY KALENDARZ' }),
         element('h1', { text: this.config.appName }),
         element('p', { className: 'lead', text: 'Znajdźcie dzień i godzinę, które pasują wszystkim.' }),
@@ -554,17 +565,17 @@ export class FriendsCalendarApp {
       className: 'profile-card profile-card--add',
       on: { click: () => this.openProfileSettings(null) },
     }, [
-      element('span', { className: 'profile-card__avatar profile-card__avatar--add', text: '+' }),
+      element('span', { className: 'profile-card__avatar profile-card__avatar--add' }, materialIcon('person_add')),
       element('span', { className: 'profile-card__name', text: 'Dodaj profil' }),
     ]);
     grid.append(addCard);
 
     const header = element('header', { className: 'simple-header' }, [
       element('div', { className: 'brand-inline' }, [
-        element('span', { className: 'brand-inline__mark', text: '✓' }),
+        element('span', { className: 'brand-inline__mark' }, materialIcon('event_available')),
         element('span', { text: this.config.appName }),
       ]),
-      iconButton('⌁', 'Zablokuj aplikację', () => this.lock()),
+      iconButton('lock', 'Zablokuj aplikację', () => this.lock()),
     ]);
 
     this.root.replaceChildren(element('main', { className: 'profiles-screen' }, [
@@ -624,7 +635,7 @@ export class FriendsCalendarApp {
         ),
       },
     }, [
-      element('span', { className: 'edit-mode-button__icon', text: '✎', attrs: { 'aria-hidden': 'true' } }),
+      materialIcon('edit', 'edit-mode-button__icon'),
       element('span', {
         className: 'edit-mode-button__label',
         text: this.calendarInteractionMode === 'edit' ? 'Zakończ edycję' : 'Edytuj kalendarz',
@@ -645,13 +656,13 @@ export class FriendsCalendarApp {
       ]),
       element('div', { className: 'topbar-actions' }, [
         editModeButton,
-        iconButton('↻', 'Synchronizuj', () => this.syncCurrentMonth()),
-        iconButton('⚙', 'Ustawienia profilu', () => this.openProfileSettings(profile.id)),
+        iconButton('sync', 'Synchronizuj', () => this.syncCurrentMonth()),
+        iconButton('settings', 'Ustawienia profilu', () => this.openProfileSettings(profile.id)),
       ]),
     ]);
 
     const monthToolbar = element('section', { className: 'month-toolbar' }, [
-      iconButton('‹', 'Poprzedni miesiąc', () => this.changeMonth(-1), 'month-nav-button'),
+      iconButton('chevron_left', 'Poprzedni miesiąc', () => this.changeMonth(-1), 'month-nav-button'),
       element('button', {
         type: 'button',
         className: 'month-title',
@@ -660,7 +671,7 @@ export class FriendsCalendarApp {
         element('span', { text: formatMonthTitle(this.currentMonth) }),
         element('small', { text: 'Dotknij, aby wrócić do dzisiaj' }),
       ]),
-      iconButton('›', 'Następny miesiąc', () => this.changeMonth(1), 'month-nav-button'),
+      iconButton('chevron_right', 'Następny miesiąc', () => this.changeMonth(1), 'month-nav-button'),
     ]);
 
     const calendarPanel = element('section', { className: 'calendar-panel' });
@@ -754,11 +765,8 @@ export class FriendsCalendarApp {
       const availableProfiles = profiles.filter((profile) => isProfileAvailable(entries[profile.id], mode));
       const common = commonAvailability(entries, profileIds, mode);
       const intervalLabel = common.length ? formatMinuteInterval(common[0]) : '';
-      const commonLabel = mode === CALENDAR_MODES.UNAVAILABILITY
-        ? (intervalLabel === 'cały dzień' ? 'wszyscy wolni' : `wolne ${intervalLabel}`)
-        : (intervalLabel === 'cały dzień' ? 'wszyscy' : intervalLabel);
-      const shouldShowCommon = common.length > 0
-        && (mode === CALENDAR_MODES.AVAILABILITY || markedProfiles.length > 0);
+      const allProfilesDeclared = profiles.length > 0 && markedProfiles.length === profiles.length;
+      const isGroupMatch = allProfilesDeclared && common.length > 0;
       const profileSummaries = availableProfiles.map((availableProfile) => {
         const plan = entries[availableProfile.id];
         const note = String(plan?.note || '').trim();
@@ -773,6 +781,7 @@ export class FriendsCalendarApp {
         ariaSummary = `Dostępnych osób: ${availableProfiles.length}. Brak wspólnego wolnego czasu.`;
       }
       if (profileSummaries.length) ariaSummary += ` ${profileSummaries.join('. ')}.`;
+      if (isGroupMatch) ariaSummary += ' Dopasowanie dla całej grupy.';
       const cell = element('button', {
         type: 'button',
         className: [
@@ -780,6 +789,7 @@ export class FriendsCalendarApp {
           mode === CALENDAR_MODES.UNAVAILABILITY ? 'day-cell--unavailability' : '',
           !item.inCurrentMonth ? 'is-outside' : '',
           item.key === today ? 'is-today' : '',
+          isGroupMatch ? 'is-group-match' : '',
           this.selectedDates.has(item.key) ? 'is-selected' : '',
         ].filter(Boolean).join(' '),
         dataset: { date: item.key },
@@ -805,12 +815,6 @@ export class FriendsCalendarApp {
           className: 'available-count',
           text: String(availableProfiles.length),
           attrs: { title: `Dostępnych osób: ${availableProfiles.length}` },
-        }));
-      }
-      if (shouldShowCommon) {
-        summary.append(element('span', {
-          className: 'common-time',
-          text: commonLabel,
         }));
       }
       cell.append(summary);
@@ -1207,7 +1211,7 @@ export class FriendsCalendarApp {
           element('p', { className: 'eyebrow', text: 'SZCZEGÓŁY DNIA' }),
           element('h2', { text: formatDateLong(date) }),
         ]),
-        iconButton('×', 'Zamknij', () => dialog.close()),
+        iconButton('close', 'Zamknij', () => dialog.close()),
       ]),
       overview,
       conversation,
@@ -1320,7 +1324,7 @@ export class FriendsCalendarApp {
         element('p', { className: 'eyebrow', text: profile.name.toLocaleUpperCase('pl') }),
         element('h2', { text: dates.length === 1 ? copy.editorTitle : `${copy.editorTitle} · ${dates.length} dni` }),
       ]),
-      iconButton('×', 'Zamknij', () => dialog.close()),
+      iconButton('close', 'Zamknij', () => dialog.close()),
     ]);
 
     dialog.append(element('section', { className: 'sheet-card' }, [
@@ -1435,7 +1439,7 @@ export class FriendsCalendarApp {
           const to = element('input', { type: 'time', value: interval.to || '22:00', attrs: { 'aria-label': 'Do godziny' } });
           from.addEventListener('input', () => { plan.intervals[index].from = from.value; emit(); });
           to.addEventListener('input', () => { plan.intervals[index].to = to.value; emit(); });
-          const remove = iconButton('×', 'Usuń przedział', () => {
+          const remove = iconButton('delete', 'Usuń przedział', () => {
             plan.intervals.splice(index, 1);
             emit();
             render();
@@ -1449,8 +1453,11 @@ export class FriendsCalendarApp {
             remove,
           ]));
         });
-        const addInterval = button('+ Dodaj kolejny przedział', {
-          className: 'text-button',
+        const addInterval = button([
+          materialIcon('add', 'button__icon'),
+          element('span', { text: 'Dodaj kolejny przedział' }),
+        ], {
+          className: 'text-button button-with-icon',
           on: {
             click: () => {
               plan.intervals.push({ from: '18:00', to: '22:00' });
@@ -1753,7 +1760,7 @@ export class FriendsCalendarApp {
           element('p', { className: 'eyebrow', text: isNew ? 'NOWA OSOBA' : 'PROFIL' }),
           element('h2', { text: isNew ? 'Dodaj profil' : 'Ustawienia profilu' }),
         ]),
-        iconButton('×', 'Zamknij', () => {
+        iconButton('close', 'Zamknij', () => {
           restoreTheme();
           dialog.close();
         }),
@@ -1838,7 +1845,7 @@ export class FriendsCalendarApp {
           element('p', { className: 'eyebrow', text: 'ZASZYFROWANY EKSPORT' }),
           element('h2', { text: scope === 'all' ? 'Pobierz wszystkie profile' : 'Pobierz cały profil' }),
         ]),
-        iconButton('×', 'Zamknij', () => dialog.close()),
+        iconButton('close', 'Zamknij', () => dialog.close()),
       ]),
       element('p', { className: 'modal-copy', text: 'Plik zawiera wybrane ustawienia w zaszyfrowanym kontenerze AES-GCM. Hasło nie jest zapisywane.' }),
       form,

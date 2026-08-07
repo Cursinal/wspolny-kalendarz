@@ -1,4 +1,4 @@
-const CACHE_NAME = 'friends-calendar-static-v10';
+const CACHE_NAME = 'friends-calendar-static-v12';
 const STATIC_FILES = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const STATIC_FILES = [
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
+  './MaterialIcons-Regular.woff2',
   './src/main.js',
   './src/platform-crypto.js',
   './src/app.js',
