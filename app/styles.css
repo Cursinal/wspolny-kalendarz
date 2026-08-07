@@ -829,11 +829,10 @@ input[type="file"]::file-selector-button {
 
 .day-cell {
   position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(22px, 1fr) auto;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  min-height: clamp(66px, 17.4vw, 132px);
+  min-height: clamp(118px, 23vw, 174px);
   border: 0;
   border-radius: 0;
   padding: 6px 4px 5px;
@@ -884,28 +883,38 @@ input[type="file"]::file-selector-button {
 
 .day-cell__profiles {
   display: flex;
-  align-items: center;
-  align-self: end;
+  flex-direction: column-reverse;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
   min-width: 0;
-  min-height: 22px;
-  padding-left: 1px;
+  margin-top: auto;
+  gap: 2px;
   overflow: hidden;
 }
 
+.day-cell__person {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  min-width: 0;
+  gap: 2px;
+  border-left: 2px solid var(--profile-color, var(--accent));
+  border-radius: 6px 7px 7px 2px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 14%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--profile-color, var(--accent)) 24%, transparent);
+}
+
 .day-cell__avatar {
-  flex: 0 0 auto;
-  width: clamp(17px, 4.8vw, 25px);
-  height: clamp(17px, 4.8vw, 25px);
-  margin-left: -4px;
+  width: clamp(15px, 4.2vw, 23px);
+  height: clamp(15px, 4.2vw, 23px);
   border: 2px solid var(--profile-color, var(--accent));
   border-radius: 50%;
   background: color-mix(in srgb, var(--profile-color, var(--accent)) 24%, var(--surface-2));
   box-shadow: 0 0 0 1px var(--surface);
-  font-size: clamp(0.55rem, 1.7vw, 0.78rem);
-}
-
-.day-cell__avatar:first-child {
-  margin-left: 0;
+  font-size: clamp(0.48rem, 1.45vw, 0.72rem);
 }
 
 .day-cell__avatar.is-loading::after {
@@ -916,18 +925,56 @@ input[type="file"]::file-selector-button {
 }
 
 .day-cell__more {
-  margin-left: 2px;
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 2px 4px;
+  background: var(--surface-3);
   color: var(--text-faint);
-  font-size: 0.52rem;
+  font-size: 0.48rem;
   font-weight: 750;
 }
 
-.day-cell__summary {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
+.day-cell__person-copy {
+  display: contents;
+}
+
+.day-cell__time {
+  display: block;
+  grid-column: 2;
   min-width: 0;
-  min-height: 20px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(0.46rem, 1.45vw, 0.68rem);
+  font-weight: 790;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.day-cell__note {
+  display: -webkit-box;
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px 5px 5px 1px;
+  padding: 2px 3px;
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 25%, var(--surface));
+  color: var(--text-soft);
+  font-size: clamp(0.43rem, 1.3vw, 0.62rem);
+  font-weight: 620;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.day-cell__summary {
+  position: absolute;
+  top: 5px;
+  right: 4px;
+  display: grid;
+  justify-items: end;
+  max-width: calc(100% - 31px);
   gap: 2px;
 }
 
@@ -951,7 +998,6 @@ input[type="file"]::file-selector-button {
 }
 
 .available-count {
-  flex: 0 0 auto;
   color: var(--text);
   font-size: clamp(0.95rem, 4vw, 1.35rem);
   font-weight: 850;
@@ -1334,6 +1380,21 @@ dialog::backdrop {
 .group-preview__row {
   color: var(--text-soft);
   font-size: 0.75rem;
+}
+
+.group-preview__note {
+  position: relative;
+  width: fit-content;
+  max-width: min(88%, 520px);
+  margin: 3px 0 6px 15px;
+  border-left: 3px solid var(--profile-color, var(--accent));
+  border-radius: 5px 13px 13px 3px;
+  padding: 7px 10px;
+  background: color-mix(in srgb, var(--profile-color, var(--accent)) 17%, var(--surface-2));
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .group-preview__person {
@@ -1806,8 +1867,32 @@ dialog::backdrop {
   }
 
   .day-cell {
-    min-height: 61px;
+    min-height: 122px;
     padding-inline: 3px;
+  }
+
+  .day-cell__person {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .day-cell__avatar {
+    grid-column: 1;
+    width: 14px;
+    height: 14px;
+  }
+
+  .day-cell__time {
+    grid-column: 1;
+    width: 100%;
+    font-size: 0.42rem;
+    letter-spacing: -0.03em;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+  .day-cell__note {
+    grid-column: 1;
+    font-size: 0.44rem;
   }
 
   .common-time {

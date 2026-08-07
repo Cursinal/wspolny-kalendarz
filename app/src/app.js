@@ -7,6 +7,7 @@ import {
   formatMinuteInterval,
   formatMonthTitle,
   formatPlan,
+  formatPlanCompact,
   getDateRange,
   getMonthGrid,
   isProfileAvailable,
@@ -696,6 +697,11 @@ export class FriendsCalendarApp {
         : (intervalLabel === 'cały dzień' ? 'wszyscy' : intervalLabel);
       const shouldShowCommon = common.length > 0
         && (mode === CALENDAR_MODES.AVAILABILITY || markedProfiles.length > 0);
+      const profileSummaries = availableProfiles.map((availableProfile) => {
+        const plan = entries[availableProfile.id];
+        const note = String(plan?.note || '').trim();
+        return `${availableProfile.name}: ${formatPlan(plan, mode)}${note ? `. Notatka: ${note}` : ''}`;
+      });
       let ariaSummary;
       if (mode === CALENDAR_MODES.UNAVAILABILITY && markedProfiles.length === 0) {
         ariaSummary = `Dostępnych osób: ${availableProfiles.length}. Nikt nie zaznaczył niedostępności. Wszyscy mogą cały dzień.`;
@@ -704,6 +710,7 @@ export class FriendsCalendarApp {
       } else {
         ariaSummary = `Dostępnych osób: ${availableProfiles.length}. Brak wspólnego wolnego czasu.`;
       }
+      if (profileSummaries.length) ariaSummary += ` ${profileSummaries.join('. ')}.`;
       const cell = element('button', {
         type: 'button',
         className: [
@@ -724,7 +731,23 @@ export class FriendsCalendarApp {
       cell.append(element('span', { className: 'day-cell__number', text: item.day }));
       const profileAvatars = element('span', { className: 'day-cell__profiles', attrs: { 'aria-hidden': 'true' } });
       for (const availableProfile of availableProfiles.slice(0, 4)) {
-        profileAvatars.append(this.createAvatarNode(availableProfile, 'day-cell__avatar'));
+        const plan = entries[availableProfile.id];
+        const timeLabel = formatPlanCompact(plan, mode);
+        const note = String(plan?.note || '').trim();
+        const person = element('span', {
+          className: `day-cell__person ${note ? 'has-note' : ''}`,
+          attrs: {
+            title: `${availableProfile.name}: ${timeLabel}${note ? ` — ${note}` : ''}`,
+          },
+        }, [
+          this.createAvatarNode(availableProfile, 'day-cell__avatar'),
+          element('span', { className: 'day-cell__person-copy' }, [
+            element('span', { className: 'day-cell__time', text: timeLabel }),
+            note ? element('span', { className: 'day-cell__note', text: note }) : null,
+          ]),
+        ]);
+        person.style.setProperty('--profile-color', availableProfile.color);
+        profileAvatars.append(person);
       }
       if (availableProfiles.length > 4) {
         profileAvatars.append(element('span', { className: 'day-cell__more', text: `+${availableProfiles.length - 4}` }));
@@ -1010,7 +1033,10 @@ export class FriendsCalendarApp {
   buildGroupPreview(dates) {
     const mode = this.calendarMode();
     const copy = markingModeCopy(mode);
-    const details = element('details', { className: 'group-preview' });
+    const details = element('details', {
+      className: 'group-preview',
+      attrs: { open: dates.length === 1 },
+    });
     details.append(element('summary', {}, [
       element('span', { text: 'Podgląd grupy' }),
       element('span', { className: 'group-preview__hint', text: copy.previewHint }),
@@ -1045,6 +1071,12 @@ export class FriendsCalendarApp {
         ]);
         row.querySelector('.profile-legend__dot').style.backgroundColor = profile.color;
         day.append(row);
+        const note = String(plan?.note || '').trim();
+        if (note) {
+          const noteBubble = element('p', { className: 'group-preview__note', text: note });
+          noteBubble.style.setProperty('--profile-color', profile.color);
+          day.append(noteBubble);
+        }
       }
       body.append(day);
     }

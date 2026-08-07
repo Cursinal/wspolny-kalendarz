@@ -1,4 +1,4 @@
-const CACHE_NAME = 'friends-calendar-static-v7';
+const CACHE_NAME = 'friends-calendar-static-v8';
 const STATIC_FILES = [
   './',
   './index.html',
