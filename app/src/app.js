@@ -129,6 +129,22 @@ function plansEqual(left, right) {
   return JSON.stringify(normalizePlan(left)) === JSON.stringify(normalizePlan(right));
 }
 
+function dayMessageHours(plan, mode = CALENDAR_MODES.AVAILABILITY) {
+  const normalizedMode = normalizeCalendarMode(mode);
+  if (!isPlanMarked(plan)) {
+    return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'Cały dzień' : 'Brak deklaracji';
+  }
+  if (plan.allDay) {
+    return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'Niedostępny cały dzień' : 'Cały dzień';
+  }
+  const intervals = normalizePlan(plan).intervals;
+  if (!intervals.length) {
+    return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? 'Brak blokad' : 'Bez godzin';
+  }
+  const hours = intervals.map((interval) => `${interval.from}–${interval.to}`).join(', ');
+  return normalizedMode === CALENDAR_MODES.UNAVAILABILITY ? `Niedostępny: ${hours}` : hours;
+}
+
 function profileInitial(profile) {
   return profile?.name?.trim()?.[0]?.toLocaleUpperCase('pl') || '•';
 }
@@ -969,8 +985,8 @@ export class FriendsCalendarApp {
         this.selectedDates = new Set(completed.base);
         if (completed.selecting) this.selectedDates.add(completed.start);
         else this.selectedDates.delete(completed.start);
-        this.updateSelectionUi();
       }
+      this.finishSelectionInteraction();
       lastPointerCompletion = performance.now();
     };
 
@@ -1001,7 +1017,7 @@ export class FriendsCalendarApp {
       }
       if (this.selectedDates.has(target.dataset.date)) this.selectedDates.delete(target.dataset.date);
       else this.selectedDates.add(target.dataset.date);
-      this.updateSelectionUi();
+      this.finishSelectionInteraction();
     });
     grid.addEventListener('keydown', (event) => {
       if (!['Enter', ' '].includes(event.key)) return;
@@ -1014,7 +1030,7 @@ export class FriendsCalendarApp {
       }
       if (this.selectedDates.has(target.dataset.date)) this.selectedDates.delete(target.dataset.date);
       else this.selectedDates.add(target.dataset.date);
-      this.updateSelectionUi();
+      this.finishSelectionInteraction();
     });
   }
 
@@ -1049,8 +1065,20 @@ export class FriendsCalendarApp {
     }
   }
 
+  finishSelectionInteraction() {
+    if (this.calendarInteractionMode === 'edit' && this.selectedDates.size === 0) {
+      this.setCalendarInteractionMode('browse');
+      return;
+    }
+    this.updateSelectionUi();
+  }
+
   clearSelection() {
     this.selectedDates.clear();
+    if (this.calendarInteractionMode === 'edit') {
+      this.setCalendarInteractionMode('browse');
+      return;
+    }
     this.updateSelectionUi();
   }
 
@@ -1126,21 +1154,17 @@ export class FriendsCalendarApp {
           ? element('span', { className: 'day-message__you', text: 'Ty' })
           : null,
       ]);
-      const messageContent = element('div', { className: 'day-message__content' }, [
-        name,
-        element('div', {
-          className: `day-message__bubble day-message__bubble--time ${mode === CALENDAR_MODES.UNAVAILABILITY && marked ? 'is-blocked' : ''}`,
-          text: formatPlan(plan, mode),
-        }),
-      ]);
       const note = String(plan?.note || '').trim();
-      if (note) {
-        messageContent.append(element('p', {
-          className: 'day-message__bubble day-message__bubble--note',
-          text: note,
-        }));
-      }
-      row.append(this.createAvatarNode(person, 'day-message__avatar'), messageContent);
+      const message = element('div', {
+        className: `day-message__bubble ${mode === CALENDAR_MODES.UNAVAILABILITY && marked ? 'is-blocked' : ''}`,
+      }, [
+        element('span', { className: 'day-message__text' }, [
+          element('strong', { className: 'day-message__hours', text: dayMessageHours(plan, mode) }),
+          note ? element('span', { className: 'day-message__separator', text: ', ' }) : null,
+          note ? element('span', { className: 'day-message__note', text: note }) : null,
+        ]),
+      ]);
+      row.append(name, this.createAvatarNode(person, 'day-message__avatar'), message);
       conversation.append(row);
     }
 
@@ -1209,6 +1233,7 @@ export class FriendsCalendarApp {
     diagnosticLog('availability_removed', { profileId: profile.id, dates: datesWithEntries });
     if (dialog?.open) dialog.close();
     this.selectedDates.clear();
+    if (this.calendarInteractionMode === 'edit') this.setCalendarInteractionMode('browse');
     await this.renderCalendar(true);
     showToast(
       datesWithEntries.length === 1 ? 'Wpis został usunięty.' : `Usunięto wpisy z ${datesWithEntries.length} dni.`,

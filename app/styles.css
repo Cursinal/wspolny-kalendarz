@@ -1303,17 +1303,21 @@ dialog::backdrop {
 }
 
 .day-message {
+  --day-message-avatar-size: 42px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: start;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 4px;
   min-width: 0;
 }
 
 .day-message__avatar {
-  width: 42px;
-  height: 42px;
-  margin-top: 20px;
+  grid-row: 2;
+  grid-column: 1;
+  width: var(--day-message-avatar-size);
+  height: var(--day-message-avatar-size);
   border: 3px solid var(--profile-color, var(--accent));
   border-radius: 50%;
   background: color-mix(in srgb, var(--profile-color, var(--accent)) 22%, var(--surface-2));
@@ -1321,14 +1325,9 @@ dialog::backdrop {
   font-size: 1rem;
 }
 
-.day-message__content {
-  display: grid;
-  justify-items: start;
-  min-width: 0;
-  gap: 5px;
-}
-
 .day-message__name {
+  grid-row: 1;
+  grid-column: 2;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1347,38 +1346,43 @@ dialog::backdrop {
 }
 
 .day-message__bubble {
+  grid-row: 2;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
   width: fit-content;
   max-width: min(100%, 560px);
+  min-height: var(--day-message-avatar-size);
+  min-width: 0;
   margin: 0;
-  border-left: 3px solid var(--profile-color, var(--accent));
-  border-radius: 6px 16px 16px 4px;
-  padding: 9px 12px;
-  background: color-mix(in srgb, var(--profile-color, var(--accent)) 17%, var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 16px 5px;
+  padding: 9px 13px;
+  background: var(--surface-2);
   color: var(--text);
   font-size: 0.82rem;
   line-height: 1.42;
   overflow-wrap: anywhere;
 }
 
-.day-message__bubble--time {
-  font-weight: 760;
+.day-message__text {
+  min-width: 0;
 }
 
-.day-message__bubble--time.is-blocked {
-  color: var(--danger);
+.day-message__hours {
+  color: var(--profile-color, var(--accent));
+  font-weight: 820;
 }
 
-.day-message__bubble--note {
-  background: color-mix(in srgb, var(--profile-color, var(--accent)) 25%, var(--surface-2));
+.day-message__separator,
+.day-message__note {
   color: var(--text-soft);
-  font-weight: 560;
+  font-weight: 570;
 }
 
-.day-message.is-empty .day-message__bubble--time {
-  border-left-color: var(--border-strong);
-  background: var(--surface-2);
+.day-message.is-empty .day-message__hours {
   color: var(--text-faint);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .day-details-footer {
@@ -1933,9 +1937,11 @@ dialog::backdrop {
   }
 
   .day-message__avatar {
-    width: 48px;
-    height: 48px;
     font-size: 1.12rem;
+  }
+
+  .day-message {
+    --day-message-avatar-size: 48px;
   }
 
   .month-title small {
