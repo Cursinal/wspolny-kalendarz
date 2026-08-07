@@ -1,0 +1,9 @@
+{
+  "name": "wspolny-kalendarz-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler@latest dev",
+    "deploy": "npx wrangler@latest deploy"
+  }
+}

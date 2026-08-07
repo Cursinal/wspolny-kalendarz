@@ -1,0 +1,27 @@
+{
+	"$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+	"name": "wspolny-kalendarz-api",
+	"main": "src/index.js",
+	"compatibility_date": "2026-08-07",
+	"vars": {
+		"GITHUB_OWNER": "Cursinal",
+		"GITHUB_REPO": "wspolny-kalendarz-vault",
+		"GITHUB_BRANCH": "main",
+		"FRONTEND_ORIGINS": "https://cursinal.github.io"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "RATE_LIMIT",
+			"id": "c12f4d589d0b4fc7a10958922e6648b5"
+		}
+	],
+	"secrets": {
+		"required": [
+			"GITHUB_TOKEN",
+			"AUTH_PEPPER_B64",
+			"ACCESS_VERIFIER_B64",
+			"RECOVERY_VERIFIER_B64",
+			"SESSION_SECRET_B64"
+		]
+	}
+}

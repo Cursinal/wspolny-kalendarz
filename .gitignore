@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+.wrangler/
+.dev.vars
+generated-vault/
+worker-secrets.generated.env
+recovery-code.generated.txt
+decrypted-export/
+*.log
+.env
+.env.*
+!.env.example
+worker/.dev.vars*
